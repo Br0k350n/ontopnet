@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+    <%- include('partials/head', {title: "Register City", tag: "City On Top", isAdmin: false}); %>
+<body>
+    <%- include('partials/header', {session: session}); %>
+    
+    <div class="w-full layout-container lc-home">
+        <div class="index-layout">
+            <div class="categories">
+              <%- include('partials/banner-ad', {section: "a", number:1}); %>
+            </div>
+            <div class="body-container">
+        
+                <main class="index-content">
+                    <h1>Register Your City</h1>
+
+                    <p>
+                      <% if (experimental) { %>
+                        To verify your ownership of the city, follow these steps:
+                        <ol>
+                          <li>Enter your city's IP address below.</li>
+                          <li>Once you click "Next", we'll display your city secret.</li>
+                          <li>Copy that token and paste it in your city's <strong>server.cfg</strong> file.</li>
+                          <li><strong>[IMPORTANT]</strong> Please restart your server <strong>before</strong> hitting the "Register" button, otherwise the registry will not go through</li>
+                        </ol>
+                      <% } else { %>
+                        To verify your ownership of the city, please follow these steps:
+                        <ol>
+                          <li>Click the "Join our Discord" button below to join our official Discord server.</li>
+                          <li>Once you're in the Discord, contact us for further instructions on how to add your city to the list.</li>
+                        </ol>
+                      <% } %>
+                    </p>
+    
+                    <% if (experimental) { %>
+                      <div id="step1">
+                        <label for="ip">City IP:</label>
+                        <input type="text" id="ip" name="ip" required><br><br>
+                        <button type="button" onclick="fetchInstructions()">Next</button>
+                      </div>
+                    <% } %>
+    
+                    <% if (experimental) { %>
+                      <div id="step2" style="display:none;">
+                        <p>Please copy `sets citySecret "yourcitysecret"` put it into your server.cfg to verify city ownership. Get your city secret below:</p>
+                        <form action="/register-server" method="post">
+                          <input type="hidden" id="hiddenIp" name="ip">
+                          <input type="text" id="verificationCode" name="verificationCode" required readonly value='<%= verificationToken %>'><br><br>
+                          <button type="submit">Register City</button>
+                        </form>
+                      </div>
+                    <% } else { %>
+                      <div id="step2NonExperimental" style="display:none;">
+                        <p>Please join our Discord server for inquiries about adding your city to the list.</p>
+                        <a href="https://discord.com/invite/yourdiscordlink" target="_blank">
+                          <button type="button">Join our Discord</button>
+                        </a>
+                      </div>
+                    <% } %>
+                </main>
+            </div> 
+        </div>
+        
+        <div class="ctas space">
+          <%- include('partials/banner-ad', { section: "c", number: 1 }); %>
+          <%- include('partials/banner-ad', { section: "c", number: 2 }); %>
+        </div>
+    </div>
+
+    <script>
+      async function fetchInstructions() {
+        const ip = document.getElementById('ip').value;
+        if (!ip) {
+          alert('Please enter your IP address.');
+          return;
+        }
+
+        try {
+          const response = await fetch('/check-ip?ip=' + encodeURIComponent(ip));
+          const data = await response.json();
+
+          if (data.exists) {
+            alert('This city IP is already registered.');
+            return;
+          }
+
+          document.getElementById('hiddenIp').value = ip;
+
+          if (document.getElementById('step2')) {
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'block';
+          } else if (document.getElementById('step2NonExperimental')) {
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2NonExperimental').style.display = 'block';
+          }
+        } catch (error) {
+          console.error('Error checking IP:', error);
+          alert('An error occurred. Please try again.');
+        }
+      }
+    </script>
+</body>
+</html>

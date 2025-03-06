@@ -1,0 +1,38 @@
+<div class="container quest-container">
+    <h2>Daily Quests & User Progress</h2>
+
+    <!-- User Level Section -->
+    <div class="user-level">
+        <strong>Level:</strong> <span class="level-badge" id="user-level"><%= userLevel %></span>  
+        <br>
+        <strong>XP:</strong> <span id="current-xp"><%= currentXP %></span> / <span id="xp-needed"><%= xpNeeded %></span>
+    </div>
+
+    <!-- XP Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar" id="progress-bar" style="width: <%= (currentXP / xpNeeded) * 100 %>%"></div>
+    </div>
+
+    <!-- Available Quests -->
+    <h3>Daily Quests</h3>
+    <div class="list-container">
+        <% activeQuests.forEach(quest => { %>
+            <div class="quest-item">
+                <div class="quest-icon">✔</div>
+                <div class="quest-info">
+                    <h3><%= quest.name %></h3>
+                    <p><%= quest.description %></p>
+                </div>
+                <span class="quest-reward">+<%= quest.reward_xp %> XP</span>
+            </div>
+        <% }) %>
+    </div>
+
+    <!-- Completed Quests -->
+    <h3>Completed Quests</h3>
+    <div class="completed-list">
+        <% completedQuests.forEach(quest => { %>
+            <div class="completed-item">✅ <%= quest.name %> (+<%= quest.reward_xp %> XP)</div>
+        <% }) %>
+    </div>
+</div>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+    <%- include('partials/user-head', {title: `Admin Edit ${server.serverName}`, tag: "City On Top", isAdmin: true}); %>
+<body>
+    <%- include('partials/header', {session: session}); %>
+    
+    <div class="w-full layout-container lc-home">
+        <div class="index-layout">
+            <%- include('partials/admin-cat'); %>
+            <div class="body-container">
+                <main class="index-content">
+                    <div class="container city-edit form-section">
+                        <form action="/admin/edit-city" method="post" enctype="multipart/form-data" class="styled-form">
+                          <h2>Admin Edit "<%= server.serverName %>"</h2>
+                          <input type="hidden" name="serverId" value="<%= serverId %>">
+
+                          <label for="description">Description</label>
+                          <textarea id="description" name="description" rows="5" maxlength="250"><%= server.serverDesc %></textarea>
+
+                          <label for="serverTags">Server Tags (comma-separated)</label>
+                          <input type="text" id="serverTags" name="serverTags" value="<%= server.serverTags %>">
+
+                          <label for="banner">Custom Banner URL</label>
+                          <input type="text" id="banner" name="banner" value="<%= server.banner %>">
+
+                          <label for="discord">Discord Server</label>
+                          <input type="text" id="discord" name="discord" value="<%= server.discord %>">
+
+                          <label for="website">Website</label>
+                          <input type="text" id="website" name="website" value="<%= server.website %>">
+
+                          <label for="membership">Membership Status</label>
+                          <select id="membership" name="membership">
+                            <option value="neither" <%= server.membership === 'neither' ? 'selected' : '' %>>Normal</option>
+                            <option value="premium" <%= server.membership === 'premium' ? 'selected' : '' %>>Premium</option>
+                            <option value="premiumPlus" <%= server.membership === 'premiumPlus' ? 'selected' : '' %>>Premium+</option>
+                          </select>
+                          
+                          <div class="button-group-edit">
+                            <button class="button" type="submit">Save Changes</button>
+                            <button class="remove-button" id="removeServerBtn" type="button">Remove Server</button>
+                          </div>
+                        </form>
+
+                        
+                    </div>
+                </main>
+            </div> 
+        </div>
+
+        <div class="ctas space"></div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <p>Are you sure you want to remove "<%= server.serverName %>"?</p>
+            <form action="/admin/delete-city" method="post">
+                <input type="hidden" name="serverId" value="<%= serverId %>">
+                <button type="submit" class="confirm-delete">Confirm</button>
+                <button type="button" class="cancel-delete" id="cancelDeleteBtn">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('removeServerBtn').addEventListener('click', function() {
+            document.getElementById('confirmModal').style.display = 'flex';
+        });
+
+        document.getElementById('cancelDeleteBtn').addEventListener('click', function() {
+          document.getElementById('confirmModal').style.display = 'none';
+        });
+    </script>
+    <%- include('partials/footer'); %>
+</body>
+</html>

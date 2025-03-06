@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <%- include('partials/head', {title: "Login", tag: "City On Top", isAdmin: false}); %>
+<body>
+    <%- include('partials/header', {session: session}); %>
+    
+    <div class="w-full layout-container lc-home">
+        <div class="index-layout">
+            <div class="categories">
+              <%- include('partials/banner-ad', {section: "a", number:1}); %>
+            </div>
+            <div class="body-container">
+              <div class="server-row advertisement">
+                <%- include('partials/banner-ad', {section: "b", number: 1 }); %>
+              </div>
+                <main class="index-content login-content">
+                  <h1>Login</h1>
+                  <form action="/login" method="POST" class="auth-form">
+                    <div class="form-group">
+                      <label for="email">Email:</label>
+                      <input type="email" id="email" name="email" required class="form-input">
+                    </div>
+                  
+                    <div class="form-group">
+                      <label for="password">Password:</label>
+                      <input type="password" id="password" name="password" required class="form-input">
+                    </div>
+                  
+                    <!-- Button container -->
+                    <div class="button-container">
+                      <button type="submit" class="form-button">Login</button>
+                      <a href="/auth/discord/callback" class="discord-link login-link">
+                        <button type="button" class="form-button discord-button">
+                            <i class="fa-brands fa-discord"></i>
+                            Login with Discord
+                        </button>
+                      </a>
+                    </div>
+                  </form>
+
+                  
+                  
+                </main>
+        
+            </div> 
+        </div>
+        <div class="ctas space">
+          <%- include('partials/banner-ad', { section: "c", number: 1 }); %>
+          <%- include('partials/banner-ad', { section: "c", number: 2 }); %>
+        </div>
+    </div>
+    
+    <%- include('partials/footer'); %>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<div class="cat-nav">
+    <div class="cat-title">
+        <h2>Categories</h2>
+    </div>
+    <% categories.forEach(category => { %>
+        <div>
+            <a href="/?category=<%= category.name %>"><%= category.label %></a>
+        </div>
+    <% }); %>
+</div>

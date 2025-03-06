@@ -1,0 +1,45 @@
+<header class="main-header">
+    <div class="top-nav-bg">
+        <div class="top-nav">
+            <div class="w-full layout-container lc-header">
+                <div class="top-nav-container">
+                    <div class="signin-nav">
+                        <h3>OnTopNetwork.com</h3>
+                        <div class="signin-links">
+                            <a href="/">Home</a> | 
+                            <a href="/careers">Careers</a> | 
+                            <a href="https://www.cityontop.com/" target="_blank">CityOnTop</a> | 
+                            <a href="https://www.countyon-top.com/" target="_blank">CountyOnTop</a> | 
+                            <a href="https://www.devontop.com/" target="_blank">DevOnTop</a> | 
+                            <a href="/advertise">Advertise With Us</a> | 
+                            <a href="https://discord.gg/YOUR_DISCORD_INVITE" target="_blank">Join Our Discord</a> | 
+
+                            <% if (session.user) { %>
+                                <div class="profile-dropdown">
+                                    <div class="profile-toggle">
+                                        <img src="<%= session.user.avatar || '/imgs/default-avatar.png' %>" alt="Profile" class="profile-pic">
+                                        <span class="dropdown-arrow">&#9662;</span>
+                                    </div>
+                                    <div class="dropdown-menu">
+                                        <a href="/user/dashboard">Profile</a>
+                                        <a href="/user/cities">My Cities</a>
+                                        <% if (session.user.isAdmin == 2) { %>
+                                            <a href="/admin/dashboard">Admin Dashboard</a>
+                                        <% } else if (session.user.isAdmin == 1) { %>
+                                            <a href="/contractor/dashboard">Contractor</a>
+                                        <% } %>
+                                        <a href="/logout" class="signout-link">Sign Out</a>
+                                    </div>
+                                </div>
+                            <% } else { %>
+                                <a href="/signup">Signup</a> | 
+                                <a href="/login">Sign In</a>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>  
+            </div>
+        </div>
+    </div>
+</header>
+<%- include('navbar-sticky'); %>

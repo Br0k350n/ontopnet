@@ -1,0 +1,35 @@
+<!-- Voting Confirmation Popup Partial -->
+<div class="popup-overlay" id="vote-popup">
+    <div class="popup-container">
+        <span class="close-btn" onclick="closePopup()">✖</span>
+
+        <!-- Success Message -->
+        <div id="success-msg" style="display: none;">
+            <div class="status-icon success">✅</div>
+            <p class="message">Your vote was successfully submitted!</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error-msg" style="display: none;">
+            <div class="status-icon error">❌</div>
+            <p class="message">Oops! Your vote was not successful.</p>
+            <p class="error-message" id="error-text"></p>
+        </div>
+
+        <!-- Share Section -->
+        <div id='voting-sm-buttons' class="share-buttons">
+            <p>Share your vote:</p>
+            <a href="#" target="_blank" class="twitter" id="share-twitter">X (FKA Twitter)</a>
+            <a href="#" target="_blank" class="facebook" id="share-facebook">Facebook</a>
+            <a href="#" target="_blank" class="reddit" id="share-reddit">Reddit</a>
+        </div>
+
+        <!-- Sign Up / Sign In -->
+        <% if (!session.user) { %>
+        <div class="signup-box">
+            <p>Sign up or sign in to get additional votes & exclusive perks!</p>
+            <a href="/signup">Sign Up</a> | <a href="/login">Sign In</a>
+        </div>
+        <% } %>
+    </div>
+</div>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+    <%- include('partials/head', {title: "Sponsership Management", tag: "City On Top", isAdmin: true}); %>
+<body>
+    <%- include('partials/header', {session: session}); %>
+    
+    <div class="w-full layout-container lc-home">
+        <div class="index-layout">
+            <%- include('partials/admin-cat'); %>
+            <div class="body-container">
+                <main class="index-content">
+                    <!-- Sponsorship Management Section -->
+                    <div class="table-container" id="sponsorship-table">
+                        <h3>Sponsorships</h3>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Name</th>
+                              <th>Email</th>
+                              <th>Company</th>
+                              <th>Industry</th>
+                              <th>Status</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <% requests.forEach((request, index) => { %>
+                              <tr style="cursor: pointer;">
+                                <td><%= index + 1 %></td>
+                                <td><%= request.name %></td>
+                                <td><%= request.email %></td>
+                                <td><%= request.company %></td>
+                                <td><%= request.industry %></td>
+                                <td><%= request.status %></td>
+                                <td class="action-buttons">
+                                  <% if (request.status == "pending") { %>
+                                    <a href="/admin/accept-sponsor/<%= request.id %>" class="button edit-btn accept-btn">
+                                      <button class="edit-btn">Accept</button>
+                                    </a>
+                                    <!-- View button with data attributes -->
+                                    <button class="button view-btn" 
+                                      onclick="openSponsorModal(this)"
+                                      data-id="<%= request.id %>"
+                                      data-name="<%= request.name %>"
+                                      data-email="<%= request.email %>"
+                                      data-company="<%= request.company %>"
+                                      data-industry="<%= request.industry %>"
+                                      data-product="<%= request.product %>"
+                                      data-message="<%= request.message %>"
+                                      data-status="<%= request.status %>"
+                                      data-created="<%= request.created_at %>"
+                                      data-ip="<%= request.ip %>">
+                                      View
+                                    </button>
+                                    <a href="/admin/deny-sponsor/<%= request.id %>" class="button remove-button">
+                                      <button class="deny-btn remove-button">Deny</button>
+                                    </a>
+                                  <% } else { %>
+                                    <button class="button view-btn" 
+                                      onclick="openSponsorModal(this)"
+                                      data-id="<%= request.id %>"
+                                      data-name="<%= request.name %>"
+                                      data-email="<%= request.email %>"
+                                      data-company="<%= request.company %>"
+                                      data-industry="<%= request.industry %>"
+                                      data-product="<%= request.product %>"
+                                      data-message="<%= request.message %>"
+                                      data-status="<%= request.status %>"
+                                      data-created="<%= request.created_at %>"
+                                      data-ip="<%= request.ip %>">
+                                      View
+                                    </button>
+                                  <% } %>
+                                </td>
+                              </tr>
+                            <% }); %>
+                          </tbody>
+                        </table>
+                    </div>
+                </main>
+            </div> 
+        </div>
+        
+        <div class="ctas space">
+        </div>
+    </div>
+
+    <!-- Modal Markup (placed outside the table) -->
+    <div id="sponsorModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeSponsorModal()">&times;</span>
+        <h2>Sponsor Request Details</h2>
+        <p><strong>Name:</strong> <span id="modalName"></span></p>
+        <p><strong>Email:</strong> <span id="modalEmail"></span></p>
+        <p><strong>Company:</strong> <span id="modalCompany"></span></p>
+        <p><strong>Industry:</strong> <span id="modalIndustry"></span></p>
+        <p><strong>Product:</strong> <span id="modalProduct"></span></p>
+        <p><strong>Message:</strong> <span id="modalMessage"></span></p>
+        <p><strong>Status:</strong> <span id="modalStatus"></span></p>
+        <p><strong>Submitted At:</strong> <span id="modalCreated"></span></p>
+        <p><strong>IP:</strong> <span id="modalIp"></span></p>
+      </div>
+    </div>
+
+    <style>
+        /* Modal Background */
+        .modal {
+          display: none; /* Hidden by default */
+          position: fixed;
+          z-index: 1000;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(3px);
+          overflow: auto;
+          padding: 20px;
+        }
+      
+        /* Modal Content */
+        .modal-content {
+          background-color: #fff;
+          margin: 5% auto;
+          padding: 30px;
+          border-radius: 8px;
+          max-width: 600px;
+          width: 100%;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+          position: relative;
+        }
+      
+        /* Close Button */
+        .close {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          font-size: 28px;
+          font-weight: bold;
+          color: #888;
+          cursor: pointer;
+          transition: color 0.2s ease;
+        }
+      
+        .close:hover,
+        .close:focus {
+          color: #333;
+          text-decoration: none;
+        }
+      </style>
+      
+
+    <!-- Modal JavaScript -->
+    <script>
+        function openSponsorModal(button) {
+            var modal = document.getElementById('sponsorModal');
+            document.getElementById('modalName').innerText = button.getAttribute('data-name');
+            document.getElementById('modalEmail').innerText = button.getAttribute('data-email');
+            document.getElementById('modalCompany').innerText = button.getAttribute('data-company') || 'N/A';
+            document.getElementById('modalIndustry').innerText = button.getAttribute('data-industry') || 'N/A';
+            document.getElementById('modalProduct').innerText = button.getAttribute('data-product') || 'N/A';
+            document.getElementById('modalMessage').innerText = button.getAttribute('data-message');
+            document.getElementById('modalStatus').innerText = button.getAttribute('data-status');
+    
+            var createdStr = button.getAttribute('data-created');
+            var createdDate = new Date(createdStr);
+            var formattedDate = createdDate.toLocaleString();
+            document.getElementById('modalCreated').innerText = formattedDate;
+            
+            document.getElementById('modalIp').innerText = button.getAttribute('data-ip') || 'N/A';
+
+            modal.style.display = 'block';
+        }
+
+        function closeSponsorModal() {
+            var modal = document.getElementById('sponsorModal');
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            var modal = document.getElementById('sponsorModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

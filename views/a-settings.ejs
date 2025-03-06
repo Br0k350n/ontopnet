@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <%- include('partials/head', {title: "Settings", tag: "CoT Admin", isAdmin: true}); %>
+<body>
+  <%- include('partials/header', {session: session}); %>
+  <style>
+      .forms-container {
+          flex-direction: column;
+      }
+      .pagination {
+          display: flex;
+          justify-content: center;
+          margin-top: 10px;
+      }
+      .pagination button {
+          margin: 0 5px;
+          padding: 5px 10px;
+          cursor: pointer;
+      }
+  </style>
+
+  <div class="w-full layout-container lc-home">
+      <div class="index-layout">
+        <%- include('partials/admin-cat'); %>
+          <div class="body-container">
+              <main class="index-content">
+                  <section class="content">
+                      <div class="forms-container">
+
+                          <!-- Categories Management -->
+                          <div class="table-container">
+                              <h3>Manage Categories</h3>
+                              <form action="/admin/add-category" method="POST" class="styled-form">
+                                  <input type="text" name="categoryName" placeholder="New Category Name" required>
+                                  <button type="submit" class="btn-primary">Add Category</button>
+                              </form>
+                              <table>
+                                  <thead>
+                                      <tr>
+                                          <th>#</th>
+                                          <th>Category Label</th>
+                                          <th>Category Name</th>
+                                          <th>Actions</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody id="category-table">
+                                      <!-- Categories loaded dynamically -->
+                                  </tbody>
+                              </table>
+                              <div class="pagination" id="category-pagination"></div>
+                          </div>
+
+                          <!-- Achievements Management -->
+                          <div class="table-container">
+                              <h3>Manage Achievements</h3>
+                              <form action="/admin/add-achievement" method="POST" class="styled-form">
+                                  <input type="text" name="achievementName" placeholder="Achievement Name" required>
+                                  <textarea name="description" placeholder="Description"></textarea>
+                                  <button type="submit" class="btn-primary">Add Achievement</button>
+                              </form>
+                              <table>
+                                  <thead>
+                                      <tr>
+                                          <th>#</th>
+                                          <th>Achievement Name</th>
+                                          <th>Description</th>
+                                          <th>Actions</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody id="achievement-table">
+                                      <!-- Achievements loaded dynamically -->
+                                  </tbody>
+                              </table>
+                              <div class="pagination" id="achievement-pagination"></div>
+                          </div>
+
+                          <!-- Quests Management -->
+                          <div class="table-container">
+                              <h3>Manage Quests</h3>
+                              <form action="/admin/add-quest" method="POST" class="styled-form">
+                                <input type="text" name="questName" placeholder="Quest Name"  maxlength="40" required>
+                            
+                                <!-- Objectives Selection -->
+                                <select name="objectives" required>
+                                    <option value="" disabled selected>Select an Objective</option>
+                                    <option value="vote">Vote</option>
+                                    <option value="refer">Refer</option>
+                                    <option value="vote_premium">Vote for Premium City</option>
+                                    <option value="vote_premium_plus">Vote for Premium+ City</option>
+                                </select>
+                            
+                                <!-- Number Required -->
+                                <input type="number" name="numberRequired" placeholder="Number Required" min="1" required>
+                            
+                                <input type="number" name="reward" placeholder="XP Reward" required>
+                                
+                                <button type="submit" class="btn-primary">Add Quest</button>
+                            </form>                            
+                              <table>
+                                  <thead>
+                                      <tr>
+                                          <th>#</th>
+                                          <th>Quest Name</th>
+                                          <th>Objectives</th>
+                                          <th>XP Reward</th>
+                                          <th>Actions</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody id="quest-table">
+                                      <!-- Quests loaded dynamically -->
+                                  </tbody>
+                              </table>
+                              <div class="pagination" id="quest-pagination"></div>
+                          </div>
+
+                      </div>
+                  </section>
+              </main>
+          </div> 
+      </div>
+  </div>
+
+  <script>
+      async function fetchData(type, page = 1) {
+          const response = await fetch(`/admin/get-${type}?page=${page}`);
+          const data = await response.json();
+          
+          const tableBody = document.getElementById(type + "-table");
+          const paginationDiv = document.getElementById(type + "-pagination");
+
+          tableBody.innerHTML = "";
+          paginationDiv.innerHTML = "";
+
+          data.items.forEach((item, index) => {
+              let row = `<tr>
+                  <td>${index + 1 + (data.page - 1) * data.perPage}</td>
+                  <td>${item.name}</td>`;
+              
+              if (type === "achievement") {
+                  row += `<td>${item.description}</td>`;
+              } else if (type === "quest") {
+                  row += `<td>${item.description}</td>
+                          <td>${item.reward_xp} XP</td>`;
+              } else if (type === "category") {
+                row = `<tr>
+                  <td>${index + 1 + (data.page - 1) * data.perPage}</td>
+                  <td>${item.label}</td>
+                  <td>${item.name}</td>`;
+              }
+
+              row += `<td class="action-buttons">
+                  ${type !== "category" ? `<a href="/admin/edit-${type}/${item.id}" class="button edit-btn"><button class="edit-btn">Edit</button></a>` : ""}
+                  <button class="remove-btn remove-button remove${type.charAt(0).toUpperCase() + type.slice(1)}Btn" data-${type}-id="${item.id}">Remove</button>
+              </td></tr>`;
+
+              tableBody.innerHTML += row;
+          });
+
+          for (let i = 1; i <= data.totalPages; i++) {
+              let button = document.createElement("button");
+              button.textContent = i;
+              button.onclick = () => fetchData(type, i);
+              if (i === data.page) button.style.fontWeight = "bold";
+              paginationDiv.appendChild(button);
+          }
+      }
+
+      // Fetch data on page load
+      fetchData("category");
+      fetchData("achievement");
+      fetchData("quest");
+
+      // Handle deletion dynamically
+      document.addEventListener("click", function (event) {
+          if (event.target.classList.contains("removeCategoryBtn")) {
+              if (confirm("Are you sure you want to delete this category?")) {
+                  fetch(`/admin/delete-category/${event.target.dataset.categoryId}`, { method: "POST" })
+                      .then(() => fetchData("category"));
+              }
+          }
+          if (event.target.classList.contains("removeAchievementBtn")) {
+              if (confirm("Are you sure you want to delete this achievement?")) {
+                  fetch(`/admin/delete-achievement/${event.target.dataset.achievementId}`, { method: "POST" })
+                      .then(() => fetchData("achievement"));
+              }
+          }
+          if (event.target.classList.contains("removeQuestBtn")) {
+              if (confirm("Are you sure you want to delete this quest?")) {
+                  fetch(`/admin/delete-quest/${event.target.dataset.questId}`, { method: "POST" })
+                      .then(() => fetchData("quest"));
+              }
+          }
+      });
+  </script>
+  <%- include('partials/footer'); %>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+    <%- include('partials/head', {title: "Banner Management", tag: "CoT Admin", isAdmin: true}); %>
+<body>
+    <%- include('partials/header', {session: session}); %>
+    <style>
+      a.edit-btn {
+        padding: 0;
+        background-color: #00000000;
+        color: #fff;
+      }
+  
+      button.edit-btn {
+        background-color: #3498db;
+        color: #fff;
+        padding: 5px 10px;
+      }
+  
+      button.edit-btn:hover {
+	      background-color: #1b7ab9;
+      }
+    </style>
+    <div class="w-full layout-container lc-home">
+        <div class="index-layout">
+          <%- include('partials/admin-cat'); %>
+            <div class="body-container">
+        
+                <main class="index-content">
+                    <section class="content">
+                        <!-- Add Server Form -->
+                        <div class="form-section banner-form-section">
+                          <h2>Add a new banner</h2>
+                          <form action="/admin/add-banner" method="POST" class="styled-form" enctype="multipart/form-data">
+                            <label for="imgUrl">Image URL:</label>
+                            <input type="text" id="imgUrl" name="imgUrl">
+                            
+                            <label for="imgUpload">Or Upload Image:</label>
+                            <input type="file" id="imgUpload" name="imgUpload" accept="image/*">
+                        
+                            <label for="redirectUrl">Redirect URL:</label>
+                            <input type="text" id="redirectUrl" name="redirectUrl" placeholder="https://example.com">
+                        
+                            <div class="field-pair">
+                                <label for="openInTab">Open in New Tab?</label>
+                                <input type="checkbox" id="openInTab" name="openInTab" value="newTab">
+                            </div>
+                        
+                            <fieldset>
+                                <legend>Banner Section:</legend>
+                                <label>
+                                    <input type="radio" id="left-section" name="banner-section" value="a" checked> Left Section
+                                </label>
+                                <label>
+                                    <input type="radio" id="listing-section" name="banner-section" value="b"> Listing Section
+                                </label>
+                                <label>
+                                    <input type="radio" id="right-section" name="banner-section" value="c"> Right Section
+                                </label>
+                            </fieldset>
+                        
+                            <button type="submit">Add Banner</button>
+                        </form>
+                        
+                        </div>
+                        <!-- Search Bar and Add Banner Button -->
+                        <div class="search-bar">
+                          <!-- Added id and onkeyup to trigger search -->
+                          <input type="text" id="bannerSearch" placeholder="Search banners..." onkeyup="searchBanners()">
+                          <button>Search</button>
+                        </div>
+                        <div class="table-container" id="paid-banners">
+                            <h3>Manage Paid Banners</h3>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Campaign</th>
+                                  <th>Image</th>
+                                  <th>Page Location</th>
+                                  <th>Section</th>
+                                  <th>Clicks</th>
+                                  <th>Impressions</th>
+                                  <th>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <% banners.forEach((banner, index) => { %>
+                                  <tr>
+                                    <!-- The first cell contains the campaign name -->
+                                    <td><%= banner.campaign %></td>
+                                    <td>
+                                      <button onclick="showModal('/imgs/<%= banner.image_path %>')">View Image</button>
+                                    </td>
+                                    <td>
+                                      <a href="<%= banner.link %>" <%= banner.open_in_new_tab ? 'target="_blank"' : '' %>>
+                                        <%= banner.link %>
+                                      </a>
+                                    </td>
+                                    <td>
+                                      <%= banner.section === 'a' ? 'Left Section' : 
+                                          banner.section === 'b' ? 'Listing Section' : 
+                                          banner.section === 'c' ? 'Right Section' : banner.section %>
+                                    </td>
+                                    <td><%= banner.impressions %></td>
+                                    <td><%= banner.clicks %></td>
+                                    <td class="action-buttons">
+                                      <button class="edit-btn" onclick="editBanner(<%= banner.id %>)">Edit</button>
+                                      <button class="delete-btn" onclick="deleteBanner(<%= banner.id %>)">Remove</button>
+                                    </td>
+                                  </tr>
+                                <% }) %>
+                              </tbody>                              
+                            </table>
+                        </div>
+                
+                        <!-- Pagination -->
+                        <div class="pagination"></div>
+                
+                        <!-- Shared Banner Placements Section -->
+                        <div class="table-container" id="shared-banners">
+                            <h3>Shared Banner Placements</h3>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>#</th>
+                                  <th>Shared Banner Group</th>
+                                  <th>Page Location</th>
+                                  <th>Number of Banners</th>
+                                  <th>Status</th>
+                                  <th>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody></tbody>
+                            </table>
+                        </div>
+
+                        <div class="pagination-shared"></div>
+                      </section>
+                </main>
+        
+            </div> 
+             
+        </div>
+        <div class="ctas space">
+              
+        </div>
+        
+    </div>
+    <!-- Image Modal -->
+    <div id="imageModal" class="img-modal" onclick="closeModal()">
+      <img id="modalImg" src="" alt="Full-size Banner">
+    </div>
+     
+    <%- include('partials/footer'); %>
+</body>
+<script>
+    // Shared placements data (unchanged)
+    const sharedPlacements = [
+      { id: 1, group: "Homepage Shared Sidebar", location: "Homepage - Sidebar", banners: 5, status: "Active" },
+      { id: 2, group: "Server Page Shared Footer", location: "Server Listing Page - Footer", banners: 3, status: "Active" },
+      { id: 3, group: "Homepage Footer Group", location: "Homepage - Footer", banners: 4, status: "Inactive" },
+      { id: 4, group: "Featured Sidebar Group", location: "Server Listing Page - Sidebar", banners: 2, status: "Active" },
+    ];
+  
+    const itemsPerPage = 3; // Number of rows per page
+    let currentPage = 1;
+    let sharedPage = 1;
+
+    // (Optional) Functions for rendering shared placements table & pagination remain unchanged
+    function renderSharedTable(page = 1) {
+        const tableBody = document.querySelector("#shared-banners tbody");
+        tableBody.innerHTML = ""; // Clear existing rows
+
+        const start = (page - 1) * itemsPerPage;
+        const end = page * itemsPerPage;
+        const paginatedItems = sharedPlacements.slice(start, end);
+
+        paginatedItems.forEach((placement, index) => {
+          const row = document.createElement("tr");
+          row.innerHTML = ` 
+            <td>${start + index + 1}</td>
+            <td>${placement.group}</td>
+            <td>${placement.location}</td>
+            <td>${placement.banners}</td>
+            <td>${placement.status}</td>
+            <td class="action-buttons">
+              <button class="edit-btn">Edit</button>
+              <button class="delete-btn">Remove</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+
+        updatePagination("pagination-shared", sharedPlacements.length, (page) => {
+          sharedPage = page;
+          renderSharedTable(page);
+        });
+    }
+
+    function updatePagination(paginationClass, totalItems, onPageChange) {
+      const pagination = document.querySelector(`.${paginationClass}`);
+      pagination.innerHTML = ""; // Clear existing buttons
+
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+      // Add "Previous" button
+      const prevButton = document.createElement("button");
+      prevButton.textContent = "« Previous";
+      prevButton.disabled = (paginationClass === "pagination" ? currentPage : sharedPage) === 1;
+      prevButton.addEventListener("click", () => {
+        if ((paginationClass === "pagination" ? currentPage : sharedPage) > 1) {
+          onPageChange((paginationClass === "pagination" ? currentPage : sharedPage) - 1);
+        }
+      });
+      pagination.appendChild(prevButton);
+
+      // Add page number buttons
+      for (let i = 1; i <= totalPages; i++) {
+        const pageButton = document.createElement("button");
+        pageButton.textContent = i;
+        pageButton.classList.toggle("active", i === (paginationClass === "pagination" ? currentPage : sharedPage));
+        pageButton.addEventListener("click", () => {
+          onPageChange(i);
+        });
+        pagination.appendChild(pageButton);
+      }
+
+      // Add "Next" button
+      const nextButton = document.createElement("button");
+      nextButton.textContent = "Next »";
+      nextButton.disabled = (paginationClass === "pagination" ? currentPage : sharedPage) === totalPages;
+      nextButton.addEventListener("click", () => {
+        if ((paginationClass === "pagination" ? currentPage : sharedPage) < totalPages) {
+          onPageChange((paginationClass === "pagination" ? currentPage : sharedPage) + 1);
+        }
+      });
+      pagination.appendChild(nextButton);
+    }
+
+    // Initialize the shared placements table on page load
+    document.addEventListener("DOMContentLoaded", () => {
+      renderSharedTable();
+    });
+
+    // Image Modal functions (unchanged)
+    function showModal(imageSrc) {
+      document.getElementById("modalImg").src = imageSrc;
+      document.getElementById("imageModal").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("imageModal").style.display = "none";
+    }
+
+    // ==============================
+    // New: Search function for paid banners
+    // ==============================
+    function searchBanners() {
+      // Get the search query
+      const input = document.getElementById("bannerSearch");
+      const filter = input.value.toLowerCase();
+      // Get all table rows in the paid banners table's tbody
+      const tbody = document.querySelector("#paid-banners tbody");
+      const rows = tbody.getElementsByTagName("tr");
+
+      // Loop through all rows and hide those that don't match the query
+      for (let i = 0; i < rows.length; i++) {
+        // The campaign name is in the first cell (td)
+        const campaignCell = rows[i].getElementsByTagName("td")[0];
+        if (campaignCell) {
+          const campaignText = campaignCell.textContent || campaignCell.innerText;
+          if (campaignText.toLowerCase().indexOf(filter) > -1) {
+            rows[i].style.display = "";
+          } else {
+            rows[i].style.display = "none";
+          }
+        }
+      }
+    }
+</script>
+</html>
