@@ -1,18 +1,11 @@
 import React from 'react';
-import HeadComponent from './HeadComponent';
-import Header from './Header';
-import Footer from './Footer';
 
 interface HomeProps {
-  session: any;
 }
 
-const Home: React.FC<HomeProps> = ({ session }) => {
+const Home: React.FC<HomeProps> = () => {
   return (
     <>
-      <HeadComponent title="Home" tag="On Top Network" isAdmin={false} />
-
-      <Header session={session} />
 
       <div className="w-full layout-container lc-home">
         <div className="index-layout">
@@ -103,7 +96,6 @@ const Home: React.FC<HomeProps> = ({ session }) => {
         </div>
       </div>
 
-      <Footer />
     </>
   );
 };
