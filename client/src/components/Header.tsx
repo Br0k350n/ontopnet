@@ -22,9 +22,9 @@ const Header: React.FC<HeaderProps> = () => {
                   <a href="https://discord.gg/98XGDhMCUX" target="_blank" rel="noopener noreferrer">Join Our Discord</a>
                   
                   {/* Show Portal link if the user is not signed in */}
-                  {!user && (
+                  {/* {!user && (
                     <a href="/login">Portal</a> // Link to the login page
-                  )}
+                  )} */}
                   {/* Optionally, you can show a Dashboard link if the user is logged in */}
                   {user && (
                     <a href="/dashboard">Dashboard</a>

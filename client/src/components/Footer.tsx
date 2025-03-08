@@ -15,7 +15,7 @@ const Header: React.FC<HeaderProps> = () => {
 
         <script src="/script.js?v=1.12"></script>
       </footer>
-      <CookieConsent />
+      {/* <CookieConsent /> */}
     </>
   );
 };
