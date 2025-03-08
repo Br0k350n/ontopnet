@@ -208,30 +208,6 @@ async function fetchServerDetails(ip) {
     citySecret: dynamicData.citySecret
   };
 }
-
-// Passport configuration
-passport.serializeUser((user, done) => {
-  // console.log(user)
-  done(null, user.id); // Store the user's ID in the session
-});
-
-passport.deserializeUser(async (id, done) => {
-    try {
-      // Retrieve user from the database using ID
-      const [userData] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
-      
-      // Check if user is found
-      if (userData.length > 0) {
-        const { discord_id, username } = userData[0];  // Destructure values from the first result
-        done(null, { discord_id, username });  // Return the user object
-      } else {
-        done(new Error('User not found'));
-      }
-    } catch (err) {
-      console.error('Error during deserialization:', err);
-      done(err);
-    }
-});
   
 
 // Discord Strategy
@@ -264,21 +240,6 @@ passport.use(
           return done(null, user);
         }
 
-        // If userIdFromCookies exists, update the existing user with Discord info
-        if (userIdFromCookies) {
-          await pool.query(
-            'UPDATE users SET discord_id = ?, avatar = ?, discord_username = ? WHERE id = ?',
-            [discord_id, avatarUrl, username, userIdFromCookies]
-          );
-
-          const [updatedUserRows] = await pool.query('SELECT * FROM users WHERE id = ?', [userIdFromCookies]);
-          if (updatedUserRows.length === 0) {
-            return done(new Error('Failed to update user with Discord ID.'));
-          }
-
-          return done(null, updatedUserRows[0]);
-        }
-
         return done();
       } catch (err) {
         console.error('Error in Discord strategy:', err);
@@ -287,6 +248,12 @@ passport.use(
     }
   )
 );
+
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser(async (id, done) => {
+  const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);
+  done(null, rows.length > 0 ? rows[0] : null);
+});
     
 app.use(passport.initialize());
 app.use(passport.session());
@@ -434,114 +401,6 @@ async function getReferrerInvite(userId) {
     }
 }
 
-app.get('/payment-success/:subscriptionID', async (req, res) => {
-  const subscriptionID = req.params.subscriptionID;
-  const discountCode = req.query.discountCode;
-  const user = req.session.user;
-  await pool.query('UPDATE contractor_discount_codes SET uses = uses + 1 WHERE code = ?', [discountCode]);
-  // Fetch the invite for the user who made the purchase
-  const referrerInvite = await getReferrerInvite(user.id);
-
-  // Prepare the webhook message
-  const webhookMessage = {
-    username: 'On Top Network',
-    embeds: [{
-        title: 'User Purchase',
-        color: 0x3498db, // Keeping consistent blue color
-        fields: [
-            { name: 'User ID', value: `\`${user.id}\``, inline: true },
-            { name: 'Username', value: `\`${user.username}\``, inline: true },
-            { name: 'Email', value: `\`${user.email}\``, inline: true },
-            { name: 'Discord', value: `\`${user.discord_username || 'N/A'}\``, inline: true },
-            { name: 'Subscription ID', value: `\`${subscriptionID}\``, inline: true },
-            { name: 'Referral Code', value: `\`${referrerInvite || 'No referrer'}\``, inline: true }, // Add invite here
-            { name: 'Time of Purchase', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
-        ],
-        footer: { 
-            text: `On Top Network • ${new Date().toISOString()}`,
-        }
-    }]
-  };
-
-  // Send the webhook message
-  await sendWebhook(process.env.SUBSCRIPTION_WEBHOOK, webhookMessage);
-
-  // Redirect to home after a small delay
-  setTimeout(() => {
-      res.redirect('/');
-  }, 2000); // Redirect after 2 seconds
-});
-
-// app.get('/checkout', async (req, res) => {
-//   const { plan, server, cycle, discountCode } = req.query;
-//   console.log('Discount Code:', discountCode); // Logs the discount code
-
-//   if (!plan || !server || !cycle) return res.redirect('/premium');
-
-//   // Base prices for the plans
-//   const basePrices = {
-//     premium: { month: 14.99, year: 144.00 },
-//     premiumPlus: { month: 29.99, year: 288.00 }
-//   };
-
-//   // Validate plan
-//   if (!basePrices[plan]) return res.redirect('/premium');
-
-//   let price = basePrices[plan][cycle];
-//   let discountAmount = 0;
-//   let discountData = null;
-
-//   try {
-//     // Check if discount code is provided and is valid
-//     if (discountCode) {
-//       const [discount] = await pool.query(
-//         `SELECT * FROM contractor_discount_codes 
-//          WHERE code = ? AND is_active = 1 
-//          AND (expiry_date IS NULL OR expiry_date > NOW())`,
-//         [discountCode]
-//       );
-
-//       if (discount.length > 0) {
-//         discountData = discount[0];
-//         discountAmount = price * (discountData.discount / 100);
-//         price = Math.max(price - discountAmount, 0); // Apply discount
-//       } else {
-//         // Discount code not valid
-//         res.send("Invalid discount code.");
-//         return;
-//       }
-//     }
-
-//     // PayPal plan IDs for each plan and cycle
-//     const planIds = {
-//       premium: { month: 'P-3BF27432BJ0369518M67W5XI', year: 'P-2LF40256BM281920CM7DYS5I' },
-//       premiumPlus: { month: 'P-5EG00920NT528751GM7DYTHQ', year: 'P-18789253NE838905LM7DYTQQ' }
-//     };
-//     console.log(planIds[plan][cycle])
-
-//     res.render('checkout', {
-//       session: req.session,
-//       clientId: PAYPAL_CLIENT_ID,
-//       plan: plan,
-//       server: server,
-//       cycle: cycle,
-//       basePrice: basePrices[plan][cycle].toFixed(2),
-//       price: basePrices[plan][cycle],
-//       finalPrice: price.toFixed(2),
-//       discountCode: discountCode || '',
-//       discountApplied: discountCode ? true : false,
-//       discountAmount: discountAmount.toFixed(2),
-//       paypalPlanId: planIds[plan][cycle],
-//     });
-
-//   } catch (error) {
-//     console.error('Checkout error:', error);
-//     res.status(500).send('Server error');
-//   }
-// });
-
-
-
 app.get('/validate-discount', async (req, res) => {
   const { discountCode } = req.query;
   console.log(discountCode)
@@ -569,11 +428,6 @@ app.get('/validate-discount', async (req, res) => {
     return res.status(500).send('Server error');
   }
 });
-
-
-// app.get('/test', async (req,res) => {
-//   res.render('test', {session: req.session})
-// })
 
 app.get('/privacy-policy', async (req,res) => {
   res.render('privacy', {session: req.session})
@@ -652,8 +506,6 @@ app.get('/admin/accept-sponsor/:id', isAuthenticated, isAdmin, async (req, res) 
   }
 });
 
-
-
 // Deny sponsor request route
 app.get('/admin/deny-sponsor/:id', isAuthenticated, isAdmin, async (req, res) => {
   try {
@@ -667,68 +519,6 @@ app.get('/admin/deny-sponsor/:id', isAuthenticated, isAdmin, async (req, res) =>
     res.status(500).send("Server error while denying sponsor request.");
   }
 });
-
-// GET route for sponsor dashboard
-app.get('/sponsor/dashboard', isAuthenticated, async (req, res) => {
-  try {
-    const email = req.session.user.email;
-    // Query for the accepted sponsorship for this user
-    const [rows] = await pool.query(
-      "SELECT * FROM sponsor_requests WHERE email = ? AND status = 'accepted'",
-      [email]
-    );
-    if (rows.length === 0) {
-      // If no accepted sponsorship is found, you might show a message or redirect
-      return res.render("sponsor-dashboard", { sponsor: null, message: "You do not have an active sponsorship." , session: req.session});
-    }
-    res.render("sponsor-dashboard", { sponsor: rows[0], message: null, session: req.session });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Server error");
-  }
-});
-
-// POST route for updating the sponsorship
-app.post('/sponsor/edit/:id', isAuthenticated, async (req, res) => {
-  try {
-    const email = req.session.user.email;
-    const { name, company, message } = req.body;
-    if (!name || !message) {
-      return res.status(400).send('Name and message are required.');
-    }
-    await pool.query(
-      "UPDATE sponsor_requests SET name = ?, company = ?, message = ? WHERE email = ? AND status = 'accepted'",
-      [name, company, message, email]
-    );
-    res.redirect('/sponsor/dashboard');
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Server error");
-  }
-});
-
-// GET route for editing the sponsorship
-// app.get('/sponsor/edit/:id', isAuthenticated, async (req, res) => {
-//   try {
-//     const email = req.session.user.email;
-//     const [rows] = await pool.query(
-//       "SELECT * FROM sponsor_requests WHERE email = ? AND status = 'accepted'",
-//       [email]
-//     );
-//     if (rows.length === 0) {
-//       return res.redirect('/sponsor/dashboard');
-//     }
-//     res.render("sponsor-edit", { sponsor: rows[0], session: req.session });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).send("Server error");
-//   }
-// });
-
-
-
-
-
 
 // Add Category
 app.post('/admin/add-category', isAuthenticated, isAdmin, async (req, res) => {
@@ -1087,130 +877,6 @@ app.post("/admin/users/:userId/ban", isAuthenticated, isAdmin, async (req, res) 
   }
 });
 
-// app.get("/city/edit/:id", isAuthenticated, async (req,res) => {
-  // const serverId = req.params.id;
-  // const userId = req.session.user ? req.session.user.discord_id : null; // Get logged-in user's ID
-// 
-  // try {
-
-    // const [serverRows] = await pool.query('SELECT * FROM servers WHERE id = ? AND owner = ?', [serverId, userId]);
-// 
-    // if (serverRows.length === 0) {
-      // return res.status(404).send('Server not found');
-    // }
-// 
-    // const server = serverRows[0];
-// 
-    // const serverDetails = await fetchServerDetails(server.ip);
-    // console.log(serverDetails.serverTags);
-
-    // res.render('city-edit', {
-      // server: {...server, ...serverDetails},
-      // serverId,
-      // session: req.session,
-    // });
-// 
-  // } catch (err) {
-    // console.error(err);
-    // res.status(500).send('Internal Server Error');
-  // }
-// })
-
-
-app.post('/user/edit-city', isAuthenticated, async (req, res) => {
-  try {
-    const { banner, discord, website, description, serverId, serverTags } = req.body;
-
-    if (!serverId) {
-      return res.status(400).json({ error: "Server ID is required." });
-    }
-
-    // Optional file upload (for banner image)
-    const uploadedFile = req.files ? req.files.imgUpload : null;
-    let bannerPath = null; // Will remain null if no new banner is provided
-
-    // Process banner image if provided via URL (and non-blank)
-    if (banner && banner.trim() !== "") {
-      const imageExt = path.extname(new URL(banner).pathname); // Get file extension from URL
-      const imageName = `server_${Date.now()}${imageExt}`;
-      const imagePath = path.join(__dirname, 'public', 'imgs', 'server-banners', imageName);
-      bannerPath = `/imgs/server-banners/${imageName}`;
-
-      // Download the image
-      const response = await axios({
-        url: banner,
-        responseType: 'stream',
-      });
-      
-      await new Promise((resolve, reject) => {
-        const writer = fs.createWriteStream(imagePath);
-        response.data.pipe(writer);
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-      });
-    } 
-    // Otherwise, process uploaded file if provided
-    else if (uploadedFile) {
-      const imageExt = path.extname(uploadedFile.name);
-      const imageName = `server_${Date.now()}${imageExt}`;
-      const imagePath = path.join(__dirname, 'public', 'imgs', 'server-banners', imageName);
-      bannerPath = `/imgs/server-banners/${imageName}`;
-
-      await new Promise((resolve, reject) => {
-        uploadedFile.mv(imagePath, (err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-    }
-
-    let formattedTags;
-    if (serverTags && typeof serverTags === 'string') {
-      formattedTags = serverTags
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag !== '')
-        .join(','); // Convert back to a clean comma-separated string
-    }
-    
-    // Build a dynamic update query based on non-blank fields.
-    let fields = [];
-    let values = [];
-
-    // Only update pbanner if we have a new banner image (either URL or file)
-    if (bannerPath) {
-      fields.push("pbanner = ?");
-      values.push(bannerPath);
-    }
-    if (discord && discord.trim() !== "") {
-      fields.push("discord_server = ?");
-      values.push(discord);
-    }
-    if (website && website.trim() !== "") {
-      fields.push("website = ?");
-      values.push(website);
-    }
-    if (description && description.trim() !== "") {
-      fields.push("description = ?");
-      values.push(description);
-    }
-    if (formattedTags) {
-      fields.push("serverTags = ?");
-      values.push(formattedTags);
-    }
-    // Only run an UPDATE query if there is at least one field to update.
-    if (fields.length > 0) {
-      const query = "UPDATE servers SET " + fields.join(", ") + " WHERE id = ?";
-      values.push(serverId);
-      await pool.execute(query, values);
-    }
-    
-    res.redirect(`/city/${serverId}`);
-  } catch (error) {
-    console.error("Error processing request:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
 
 // GET Route - Admin Edit Form (updated to include serverTags)
 app.get("/admin/edit-city/:id", isAdmin, async (req, res) => {
@@ -1348,18 +1014,6 @@ app.post('/admin/delete-city', isAdmin, async (req, res) => {
     console.error('Delete error:', error);
     res.status(500).send('Error deleting server');
   }
-});
-
-app.get('/advertise', async (req, res) => {
-  res.render('advertise', {
-    session: req.session,
-  });
-});
-
-app.get('/howto', async (req, res) => {
-  res.render('howto', {
-    session: req.session,
-  });
 });
 
 app.post('/feature-city', isAuthenticated, isAdmin, async (req, res) => {
@@ -2158,12 +1812,6 @@ app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedi
     res.status(500).send('Error processing Discord login');
   }
 });
-app.get('/signup', (req, res) => {
-  res.render('signup', {
-    session: req.session,
-    invite: req.query.invite || '', // Use invite from URL if available
-  });
-});
 
 // Handle signup form submission
 app.post('/signup', async (req, res) => {
@@ -2259,58 +1907,42 @@ app.post('/signup', async (req, res) => {
   }
 });
 
-app.get('/login', (req, res) => {
-  res.render('login', {session: req.session});
+// 🔹 LOGIN ENDPOINT
+app.post("/api/login", (req, res) => {
+  const { email, password } = req.body;
+  db.query("SELECT * FROM users WHERE email = ?", [email], async (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (results.length === 0) return res.status(401).json({ error: "User not found" });
+
+    const user = results[0];
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) return res.status(401).json({ error: "Incorrect password" });
+
+    req.session.user = {
+      id: user.id,
+      username: user.username,
+      isAdmin: user.isAdmin,
+    };
+
+    res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+  });
 });
 
-// Login Route
-app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-    try {
-      const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
-      if (rows.length === 0) return res.status(401).send('Invalid email or password');
-  
-      const user = rows[0];
-      const passwordMatch = await bcrypt.compare(password, user.password);
-  
-      if (!passwordMatch) return res.status(401).send('Invalid email or password');
-  
-      // If Discord ID is not linked, ask user to link it
-      if (!user.discord_id) {
-        return res.redirect(`/link-discord?id=${user.id}`);
-      }
-      const ip = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress;; // Get user's IP address (for reCAPTCHA and region lookup)
-      await pool.execute('DELETE FROM anon_votes WHERE ip = ?', [ip]);
-      await pool.query('UPDATE users SET ip = ? WHERE id = ?', [ip, user.id]);
-      // Proceed with login if Discord ID is linked
-      req.session.user = { id: user.id, username: user.username, discord_id: user.discord_id, isAdmin: user.isAdmin, email: user.email, discord_username: user.discord_username};
-      await pool.query('INSERT INTO user_activity (user_id, action, method) VALUES (?, ?, ?)', [user.id, 'login', 'email']);
-      const webhookMessage = {
-        username: 'On Top Network',
-        embeds: [{
-          title: `User ${user.username} has logged in!`,
-          color: 0x3498db,
-          thumbnail: { url: user.avatar },
-          fields: [
-            { name: 'User ID', value: `\`${user.id}\``, inline: true },
-            { name: 'Username', value: `\`${user.username}\``, inline: true },
-            { name: 'Email', value: `\`${user.email}\``, inline: false },
-            { name: 'Discord', value: `\`${user.discord_username}\``, inline: false },
-            { name: 'Method', value: '`Email`', inline: true }
-          ],
-          footer: { 
-            text: `On Top Network • ${new Date().toISOString()}`,
-          }
-        }]
-      };
-      
-  
-      await sendWebhook(process.env.LOGIN_WEBHOOK, webhookMessage);
-      res.redirect('/');
-    } catch (err) {
-      console.error(err);
-      res.status(500).send('Error logging in');
-    }
+// 🔹 Get current user (authenticated session)
+app.get("/api/auth/user", (req, res) => {
+  if (req.session.user) {
+    return res.json(req.session.user);
+  } else {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+});
+
+
+// 🔹 LOGOUT ENDPOINT
+app.post("/api/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.json({ message: "Logged out" });
+  });
 });
 
 app.get('/sponsor/register', (req, res) => {
@@ -2327,7 +1959,7 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   
 });

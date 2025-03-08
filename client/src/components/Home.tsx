@@ -1,4 +1,6 @@
 import React from 'react';
+import CareerCTA from './CareerCTA';
+import AdComponent from './adPlace';
 
 interface HomeProps {
 }
@@ -16,9 +18,9 @@ const Home: React.FC<HomeProps> = () => {
                   <div className="about-text">
                     <div className="about-title">
                       <div
-                        className="welcome-img"
+                        className="welcome-img-container"
                         style={{ backgroundImage: "url('./imgs/otn_servers/OTN.webp')" }}
-                      ></div>
+                      ><img src="./imgs/otn_servers/OTN.webp" alt="" className='welcome-img'/></div>
                       <h1>OnTopNetwork.com</h1>
                     </div>
                     <div>
@@ -38,12 +40,10 @@ const Home: React.FC<HomeProps> = () => {
                         We understand that gaming communities, modding projects, and server hosting require more than just exposure—they require the right tools and strategies to thrive. That’s why OnTopNetwork.com offers:
                       </p>
                       <ul>
-                        <li>SEO-optimized server listings to increase visibility and player engagement.</li>
-                        <li>VIP listings and advertising options to help servers stand out from the competition.</li>
-                        <li>Marketing solutions tailored to server owners and game developers, ensuring that their projects receive the right exposure.</li>
-                        <li>
-                          A strong developer and modding community, connecting creative minds who build the worlds behind FiveM, RedM, and other open-world gaming experiences.
-                        </li>
+                        <li>✅ SEO-optimized server listings to increase visibility and player engagement.</li>
+                        <li>✅ VIP listings and advertising options to help servers stand out from the competition.</li>
+                        <li>✅ Marketing solutions tailored to server owners and game developers, ensuring that their projects receive the right exposure.</li>
+                        <li>✅ A strong developer and modding community, connecting creative minds who build the worlds behind FiveM, RedM, and other open-world gaming experiences.</li>
                       </ul>
                     </div>
                     <div>
@@ -53,18 +53,7 @@ const Home: React.FC<HomeProps> = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="career-cta">
-                    <div className="career-text">
-                      <h2>We Are Hiring</h2>
-                      <ul>
-                        <li>Earn commissions and bonuses</li>
-                        <li>Work on your own schedule</li>
-                        <li>Help grow FiveM &amp; RedM communities</li>
-                        <li>Be part of a fast-growing gaming network</li>
-                      </ul>
-                    </div>
-                    <a href="/career">Apply Today!</a>
-                  </div>
+                  <CareerCTA />
                 </div>
 
                 {/* New Section for City On Top, Dev On Top, and County On Top */}
@@ -87,8 +76,43 @@ const Home: React.FC<HomeProps> = () => {
                         </div>
                       </a>
                     </div>
-                    {/* Uncomment and add additional platform cards as needed */}
+                    <div className="platform-card">
+                      <a href="https://www.cityontop.com/">
+                        <div
+                          className="platform-img"
+                          style={{ backgroundImage: "url('./imgs/otn_servers/countyontop.webp')" }}
+                        ></div>
+                        <div className="platform-about">
+                          <p>
+                            CountyOnTop.com is the go-to platform for discovering and promoting RedM servers, catering to the passionate Red Dead Redemption roleplay community. Whether you're a server owner looking to attract players or a gamer searching for the best immersive Wild West experience, CountyOnTop.com helps you find the perfect match. With ranked server listings, VIP Listings, and detailed server descriptions, your RedM server can stand out in the competitive frontier.
+                          </p>
+                          <div
+                            className="platform-about-img"
+                            style={{ backgroundImage: "url('./imgs/otn_servers/countyontop_bg.webp')" }}
+                          ></div>
+                        </div>
+                      </a>
+                    </div>
+                    <div className="platform-card">
+                      <a href="https://www.cityontop.com/">
+                        <div
+                          className="platform-img"
+                          style={{ backgroundImage: "url('./imgs/otn_servers/devontop.webp')" }}
+                        ></div>
+                        <div className="platform-about">
+                          <p>
+                          DevOnTop.com is the hub for game developers, modders, and creators who bring virtual worlds to life. Whether you're building expansive open-world environments, developing custom mods for FiveM and RedM, or looking for resources and tutorials, DevOnTop.com is your ultimate destination. Connect with like-minded developers, showcase your projects, and stay ahead in the ever-evolving world of game development.
+                          </p>
+                          <div
+                            className="platform-about-img"
+                            style={{ backgroundImage: "url('./imgs/otn_servers/devontop_bg.webp')" }}
+                          ></div>
+                        </div>
+                      </a>
+                    </div>
+
                   </div>
+                  <AdComponent />
                 </div>
               </div>
             </main>
