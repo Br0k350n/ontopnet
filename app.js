@@ -50,7 +50,15 @@ paypal.configure({
 });
 
 // Middleware
-app.use(cors());
+// CORS configuration
+const corsOptions = {
+  origin: 'http://localhost:3000',  // Set the frontend URL as the allowed origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],  // Allow relevant methods
+  allowedHeaders: ['Content-Type', 'Authorization'],  // Allow necessary headers
+  credentials: true,  // Allow credentials (cookies, authorization headers, etc.)
+};
+
+app.use(cors(corsOptions));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.set('view engine', 'ejs');
@@ -365,8 +373,6 @@ app.post('/set-cookie-consent', (req, res) => {
   res.status(200).send('Cookie consent accepted');
 });
 
-
-
 async function getReferrerInvite(userId) {
     try {
         // Query the users table to get the referrer ID for the user
@@ -569,7 +575,6 @@ app.get('/admin/get-achievement', isAuthenticated, isAdmin, async (req, res) => 
   res.json({ items, page, perPage, totalPages: Math.ceil(total / perPage) });
 });
 
-
 // Add Achievement
 app.post('/admin/add-achievement', isAuthenticated, isAdmin, async (req, res) => {
   const { achievementName, description } = req.body;
@@ -653,8 +658,6 @@ app.post('/admin/edit-quest/:id', isAuthenticated, isAdmin, async (req, res) => 
   }
 });
 
-
-
 // Add Quest
 app.post('/admin/add-quest', isAuthenticated, isAdmin, async (req, res) => {
   const { questName, objectives, numberRequired, reward } = req.body;
@@ -679,7 +682,6 @@ app.post('/admin/add-quest', isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
-
 // Delete Quest
 app.post('/admin/delete-quest/:id', isAuthenticated, isAdmin, async (req, res) => {
   const { id } = req.params;
@@ -692,8 +694,6 @@ app.post('/admin/delete-quest/:id', isAuthenticated, isAdmin, async (req, res) =
       res.status(500).send("Internal Server Error");
   }
 });
-
-
 
 app.post('/admin/feature-city', async (req, res) => {
   const { city, tier } = req.body;
@@ -830,8 +830,6 @@ app.post('/admin/set-permission', async (req, res) => {
   res.json({ success: true });
 });
 
-
-
 // Warn user route with reason parameter
 app.post("/admin/users/warn", isAuthenticated, isAdmin, async (req, res) => {
   const { reason, userId } = req.body; // Expect a reason from the admin form
@@ -876,7 +874,6 @@ app.post("/admin/users/:userId/ban", isAuthenticated, isAdmin, async (req, res) 
     res.status(500).json({ error: "Database error", details: error.message });
   }
 });
-
 
 // GET Route - Admin Edit Form (updated to include serverTags)
 app.get("/admin/edit-city/:id", isAdmin, async (req, res) => {
@@ -941,8 +938,6 @@ app.post('/admin/edit-achievement/:id', isAuthenticated, isAdmin, async (req, re
       res.status(500).send('Error updating achievement');
   }
 });
-
-
 
 // POST Route - Save Admin Edits (updated)
 app.post('/admin/edit-city', async (req, res) => {
@@ -1556,8 +1551,6 @@ app.post('/contractor/discount-codes', isAuthenticated, isContractor, async (req
   }
 });
 
-
-
 // Admin Page for Adding Servers
 app.get('/admin/analytics', isAuthenticated, isAdmin, (req, res) => {
   res.render('analytics', {session: req.session});
@@ -1701,115 +1694,79 @@ app.post('/user/redirect-to-cityontop', async (req, res) => {
   }
 });
 
+app.get("/auth/discord", passport.authenticate("discord"));
 
-
-
-app.get('/auth/discord', (req, res, next) => {
-  const invite = req.query.invite || '';
-  
-
-  const cookies = new Cookies(req, res);
-  cookies.set('invite', invite, { httpOnly: false, maxAge: 3600000 });
-
-  next();
-}, passport.authenticate('discord'));
-
-// Discord callback after authentication
-app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/signup' }), async (req, res) => {
+app.get('/auth/discord/callback', passport.authenticate('discord'), async (req, res) => {
   try {
-    const cookies = new Cookies(req, res);
-
     if (!req.user) {
-      return res.redirect('/signup'); // If authentication failed, redirect to signup
+      return res.status(401).json({ error: 'Authentication failed' });
     }
 
     const { discord_id, avatar, username } = req.user;
+
+    // ✅ Find the user by Discord ID
     const [rows] = await pool.query('SELECT * FROM users WHERE discord_id = ?', [discord_id]);
 
-    if (rows.length > 0) {
-      // Case 1: User already linked with Discord, proceed with login
-      const user = rows[0];
-
-      req.session.user = {
-        id: user.id,
-        username: user.username,
-        discord_id,
-        avatar,
-        email: user.email,
-        discord_username: username,
-        isAdmin: user.isAdmin,
-      };
-      const userIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress;; // Get user's IP address (for reCAPTCHA and region lookup)
-      await pool.query('UPDATE users SET ip = ? WHERE id = ?', [userIp, user.id]);
-
-      // Log user activity
-      await pool.query('INSERT INTO user_activity (user_id, action, method) VALUES (?, ?, ?)', [user.id, 'login', 'discord']);
-      const webhookMessage = {
-        username: 'On Top Network',
-        embeds: [{
-          title: `User ${user.username} has logged in!`,
-          color: 0x3498db,
-          thumbnail: { url: user.avatar },
-          fields: [
-            { name: 'User ID', value: `\`${user.id}\``, inline: true },
-            { name: 'Username', value: `\`${user.username}\``, inline: true },
-            { name: 'Email', value: `\`${user.email}\``, inline: false },
-            { name: 'Discord', value: `\`${user.discord_username}\``, inline: false },
-            { name: 'Method', value: '`Discord`', inline: true }
-          ],
-          footer: { 
-            text: `On Top Network • ${new Date().toISOString()}`,
-          }
-        }]
-      };
-      
-      // await sendWebhook(process.env.LOGIN_WEBHOOK, webhookMessage);
-
-      return res.redirect('/'); // Redirect to homepage/dashboard
+    if (rows.length === 0) {
+      // ❌ No user found with this Discord ID -> reject login
+      return res.status(404).json({ error: 'No account linked with this Discord. Please link Discord first from your account settings.' });
     }
 
-    // Case 2: User exists but not linked to Discord, update their record
-    const userId = cookies.get('userid');
-    if (userId) {
-      await pool.query(
-        'UPDATE users SET discord_id = ?, avatar = ?, discord_username = ? WHERE id = ?',
-        [discord_id, avatar, username, userId]
-      );
+    const user = rows[0];
 
-      // Fetch updated user details
-      const [updatedUserRows] = await pool.query(
-        'SELECT id, username, email, isAdmin, discord_id, avatar, discord_username FROM users WHERE id = ?',
-        [userId]
-      );
+    // ✅ Set user session
+    req.session.user = {
+      id: user.id,
+      username: user.username,
+      discord_id,
+      avatar,
+      email: user.email,
+      discord_username: username,
+      isAdmin: user.isAdmin,
+    };
 
-      if (updatedUserRows.length === 0) {
-        return res.status(404).send('User not found.');
-      }
+    // ✅ Update IP address
+    const userIp = req.headers['x-forwarded-for']
+      ? req.headers['x-forwarded-for'].split(',')[0].trim()
+      : req.socket.remoteAddress;
 
-      const updatedUser = updatedUserRows[0];
+    await pool.query('UPDATE users SET ip = ? WHERE id = ?', [userIp, user.id]);
 
-      // Set session with updated user details
-      req.session.user = {
-        id: updatedUser.id,
-        username: updatedUser.username,
-        discord_id: updatedUser.discord_id,
-        avatar: updatedUser.avatar,
-        email: updatedUser.email,
-        discord_username: updatedUser.discord_username,
-        isAdmin: updatedUser.isAdmin,
-      };
+    // ✅ Log the login action
+    await pool.query('INSERT INTO user_activity (user_id, action, method) VALUES (?, ?, ?)', [
+      user.id,
+      'login',
+      'discord',
+    ]);
 
-      // Log user activity
-      await pool.query('INSERT INTO user_activity (user_id, action, method) VALUES (?, ?, ?)', [updatedUser.id, 'signup', 'discord']);
+    // Generate JWT token with the user data
+    const tokenPayload = {
+      id: user.id,
+      username: user.username,
+      discord_id,
+      avatar,
+      email: user.email,
+      discord_username: username,
+      isAdmin: user.isAdmin,
+    };
 
-      return res.redirect('/');
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET_KEY, { expiresIn: '1h' });
+
+    // Redirect to the correct dashboard based on isAdmin value
+    let dashboardUrl = '/dashboard'; // Default
+
+    if (user.isAdmin === 1) {
+      dashboardUrl = '/contractor/dashboard';
+    } else if (user.isAdmin === 2) {
+      dashboardUrl = '/admin/dashboard';
     }
 
-    // Case 3: No matching user found
-    return res.status(404).send('User not found.');
+    // Redirect to frontend with token in URL
+    return res.redirect(`${process.env.FRONTEND_URL}${dashboardUrl}?token=${token}`);
+
   } catch (err) {
     console.error('Error processing Discord login:', err);
-    res.status(500).send('Error processing Discord login');
+    res.status(500).json({ error: 'Error processing Discord login' });
   }
 });
 
@@ -1921,10 +1878,14 @@ app.post("/api/login", (req, res) => {
     req.session.user = {
       id: user.id,
       username: user.username,
+      discord_id: user.discord_id,
+      avatar: user.avatar,
+      email: user.email,
+      discord_username: user.discord_username,
       isAdmin: user.isAdmin,
     };
 
-    res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+    res.json({ id: user.id, username: user.username, discord_id: user.discord_id, avatar: user.avatar, email: user.email, discord_username: user.discord_username, isAdmin: user.isAdmin });
   });
 });
 
@@ -1934,6 +1895,37 @@ app.get("/api/auth/user", (req, res) => {
     return res.json(req.session.user);
   } else {
     return res.status(401).json({ error: "Not authenticated" });
+  }
+});
+
+app.get('/api/admin/servers', async (req, res) => {
+  try {
+    console.log('Request Headers:', req.headers); // Log headers to check if a redirect is happening
+    
+    if (!req.session.user || req.session.user.isAdmin !== 2) {
+      return res.status(403).json({ error: 'Permission denied. Admins only.' });
+    }
+
+    const [rows] = await pool.query('SELECT * FROM servers ORDER BY rank ASC');
+    const totalServers = rows.length;
+
+    const [recentServers] = await pool.query('SELECT * FROM servers ORDER BY created_at DESC LIMIT 10');
+    const [voteCount] = await pool.query('SELECT SUM(votes) AS totalVotes FROM servers');
+    const totalVotes = voteCount[0].totalVotes || 0;
+
+    const [activePlayersCount] = await pool.query('SELECT SUM(players) AS activePlayers FROM servers');
+    const activePlayers = activePlayersCount[0].activePlayers || 0;
+
+    res.json({
+      totalServers,
+      recentServers,
+      totalVotes,
+      activePlayers,
+    });
+
+  } catch (err) {
+    console.error('Error retrieving admin server data:', err);
+    res.status(500).json({ message: 'Error retrieving data' });
   }
 });
 
@@ -1961,5 +1953,5 @@ function isAuthenticated(req, res, next) {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  
+  console.log("Server Started!")
 });

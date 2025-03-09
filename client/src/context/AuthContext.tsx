@@ -29,10 +29,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const res = await axios.get("http://localhost:5000/api/auth/user", { withCredentials: true });
         setUser(res.data || null);
       } catch (err) {
-        setUser(null); // Handle error by setting user to null (user is not authenticated)
+        setUser(null);
       }
     };
-    
+
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+
+    if (token) {
+      localStorage.setItem("authToken", token);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     fetchUser();
   }, []);
 
@@ -50,10 +58,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = "http://localhost:5000/auth/discord";
   };
 
-  const logout = () => {
-    axios.post("http://localhost:5000/api/auth/logout", {}, { withCredentials: true }).then(() => {
+  const logout = async () => {
+    try {
+      await axios.post("http://localhost:5000/api/auth/logout", {}, { withCredentials: true });
       setUser(null);
-    });
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
   };
 
   return <AuthContext.Provider value={{ user, login, discordLogin, logout }}>{children}</AuthContext.Provider>;
