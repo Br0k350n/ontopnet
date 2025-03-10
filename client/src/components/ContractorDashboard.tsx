@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from "react";
 
+interface ContractDashboardProps {
+    user: {
+        id: number;
+        username: string;
+        isAdmin: number;
+        discord_id?: string;  // Make properties optional
+        avatar?: string;
+        email?: string;
+        discord_username?: string;
+      };
+}
+
 interface DiscountCode {
   id: number;
   code: string;
@@ -15,7 +27,7 @@ interface ReferredUser {
   created_at: string;
 }
 
-const ContractorDashboard: React.FC = () => {
+const ContractorDashboard: React.FC<ContractDashboardProps> = ({ user }) => {
   const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([]);
   const [referredUsers, setReferredUsers] = useState<ReferredUser[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);

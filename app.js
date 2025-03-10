@@ -232,7 +232,6 @@ passport.use(
       try {
         const cookies = new Cookies(req, req.res); 
         const userIdFromCookies = cookies.get('userid'); // ✅ Now this will work
-        console.log(userIdFromCookies)
         const { id: discord_id, username, email, avatar } = profile;
         const avatarUrl = avatar
           ? `https://cdn.discordapp.com/avatars/${discord_id}/${avatar}.${avatar.startsWith('a_') ? 'gif' : 'png'}`
@@ -1142,13 +1141,7 @@ async function sendWebhook(webhookUrl, payload) {
   }
 }
 
-
-// Admin Page for Adding Servers
-app.get('/admin', isAuthenticated, isAdmin, (req, res) => {
-  res.redirect('/admin/dashboard')
-});
-
-app.get('/admin/users', isAuthenticated, isAdmin, async (req, res) => {
+app.get('/api/admin/users', async (req, res) => {
   try {
     const itemsPerPage = 10; // Number of users to display per page
     const page = parseInt(req.query.page) || 1; // Current page, default to 1
@@ -1172,12 +1165,13 @@ app.get('/admin/users', isAuthenticated, isAdmin, async (req, res) => {
         u.ip,
         u.referrer,
         (SELECT method FROM user_activity WHERE user_id = u.id AND action = 'login' ORDER BY timestamp DESC LIMIT 1) AS last_login_method,
-        (SELECT MAX(timestamp) FROM user_activity WHERE user_id = u.id AND action = 'login') AS last_login
+        (SELECT MAX(timestamp) FROM user_activity WHERE user_id = u.id AND action = 'login') AS last_login,
+        (SELECT platform FROM user_activity WHERE user_id = u.id AND action = 'login' ORDER BY timestamp DESC LIMIT 1) AS platform
       FROM users u
       ORDER BY u.created_at DESC
       LIMIT ? OFFSET ?
     `, [itemsPerPage, offset]);
-
+    
     // Fetch data for charts
     const [signupData] = await pool.query(`
       SELECT DATE(created_at) AS date, COUNT(*) AS count
@@ -1185,7 +1179,7 @@ app.get('/admin/users', isAuthenticated, isAdmin, async (req, res) => {
       GROUP BY DATE(created_at)
       ORDER BY date ASC
     `);
-
+    
     const [loginData] = await pool.query(`
       SELECT DATE(timestamp) AS date, COUNT(*) AS count
       FROM user_activity
@@ -1193,6 +1187,7 @@ app.get('/admin/users', isAuthenticated, isAdmin, async (req, res) => {
       GROUP BY DATE(timestamp)
       ORDER BY date ASC
     `);
+    
 
     // Generate labels for all months
     const months = [
@@ -1223,47 +1218,52 @@ app.get('/admin/users', isAuthenticated, isAdmin, async (req, res) => {
       labels: months, // Use the months array as labels
       data: mapDataToMonths(loginData), // Map login data to months
     };
-    
-    // Render the admin dashboard with user data and pagination info
-    res.render('user-management', {
+
+    // Respond with the data in JSON format
+    res.json({
       users,
-      session: req.session,
       totalUsers, // Total number of users for pagination
       currentPage: page, // Current page for pagination
-      itemsPerPage, // Items per page for pagination
       totalPages, // Total number of pages for pagination
       signupData: formattedSignupData, // Data for the signup chart
       loginData: formattedLoginData, // Data for the login chart
-      months, // Pass the months array to the template
+      months, // Pass the months array to the response
     });
+
   } catch (err) {
     console.error('Error retrieving users:', err);
-    res.status(500).send('Error retrieving users');
+    res.status(500).json({ error: 'Error retrieving users' });
   }
 });
 
 
-app.get('/admin/users/:id', isAuthenticated, isAdmin, async (req, res) => {
+app.get('/api/admin/users/:id', async (req, res) => {
   try {
     let userId = req.params.id;
-
-    // Fetch user details
+    console.log(userId)
+    // Fetch user details by ID
     let [userRows] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+
+    // If not found by ID, check by discord_id
     if (userRows.length === 0) {
       [userRows] = await pool.query('SELECT * FROM users WHERE discord_id = ?', [userId]);
-      userGet = userRows[0];
-      userId = userGet.id;
+      if (userRows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const userByDiscordId = userRows[0];
+      userId = userByDiscordId.id; // Update userId to their internal id
     }
 
     const user = userRows[0];
 
-    // Fetch additional relevant information (if needed)
+    // Fetch user activity
     const [activityRows] = await pool.query(
       'SELECT action, method, timestamp FROM user_activity WHERE user_id = ? ORDER BY timestamp DESC',
       [userId]
     );
 
-    // Combine user details and activity data
+    // Assemble user details and activity
     const userDetails = {
       id: user.id,
       username: user.username,
@@ -1271,17 +1271,20 @@ app.get('/admin/users/:id', isAuthenticated, isAdmin, async (req, res) => {
       discord_id: user.discord_id,
       isAdmin: user.isAdmin,
       avatar: user.avatar,
-      activity: activityRows, // Include user activity data
+      activity: activityRows,
     };
 
-    console.log(userDetails)
-    // Send the response as JSON
+    console.log(userDetails); // Debugging: Log the payload if needed
+
+    // Return JSON response
     res.json(userDetails);
+
   } catch (err) {
     console.error('Error retrieving user details:', err);
     res.status(500).json({ error: 'Error retrieving user details' });
   }
 });
+
 
 app.get('/admin/banners', isAuthenticated, isAdmin, async (req, res) => {
   let [adRows] = await pool.query('SELECT * FROM ads');
@@ -1733,10 +1736,11 @@ app.get('/auth/discord/callback', passport.authenticate('discord'), async (req, 
     await pool.query('UPDATE users SET ip = ? WHERE id = ?', [userIp, user.id]);
 
     // ✅ Log the login action
-    await pool.query('INSERT INTO user_activity (user_id, action, method) VALUES (?, ?, ?)', [
+    await pool.query('INSERT INTO user_activity (user_id, action, method, platform) VALUES (?, ?, ?, ?)', [
       user.id,
       'login',
       'discord',
+      'City',
     ]);
 
     // Generate JWT token with the user data
@@ -1751,7 +1755,7 @@ app.get('/auth/discord/callback', passport.authenticate('discord'), async (req, 
     };
 
     const token = jwt.sign(tokenPayload, process.env.JWT_SECRET_KEY, { expiresIn: '1h' });
-
+    console.log(token)
     // Redirect to the correct dashboard based on isAdmin value
     let dashboardUrl = '/dashboard'; // Default
 
@@ -1900,34 +1904,62 @@ app.get("/api/auth/user", (req, res) => {
 
 app.get('/api/admin/servers', async (req, res) => {
   try {
-    console.log('Request Headers:', req.headers); // Log headers to check if a redirect is happening
-    
-    if (!req.session.user || req.session.user.isAdmin !== 2) {
-      return res.status(403).json({ error: 'Permission denied. Admins only.' });
-    }
 
+    // Fetch all servers from the database
     const [rows] = await pool.query('SELECT * FROM servers ORDER BY rank ASC');
     const totalServers = rows.length;
 
-    const [recentServers] = await pool.query('SELECT * FROM servers ORDER BY created_at DESC LIMIT 10');
+    // Process each server to fetch additional details
+    const serversWithDetails = await Promise.all(
+      rows.map(async (server) => {
+        try {
+          let requiresVerification = !process.env.EXPERIMENTAL_MODE;
+          if (server.owner !== 'Admin') requiresVerification = false;
+          
+          if (requiresVerification) {
+            return { ...server, error: 'Verification required' };
+          }
+
+          const details = await fetchServerDetails(server.ip);
+          return {
+            ...server,
+            ...details,
+            serverDesc: details.serverDesc || server.serverDesc || "No description available"
+          };
+        } catch (error) {
+          console.error(`Error fetching details for server ${server.id}:`, error);
+          return {
+            ...server,
+            serverDesc: server.serverDesc || "Description unavailable",
+            error: 'Failed to load server details'
+          };
+        }
+      })
+    );
+
+    // Get the 3 most recently added servers from the full list
+    const recentServers = serversWithDetails
+      .slice() // copy the array to avoid mutating the original
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 3);
+
+    // Fetch total votes across all servers
     const [voteCount] = await pool.query('SELECT SUM(votes) AS totalVotes FROM servers');
     const totalVotes = voteCount[0].totalVotes || 0;
 
-    const [activePlayersCount] = await pool.query('SELECT SUM(players) AS activePlayers FROM servers');
-    const activePlayers = activePlayersCount[0].activePlayers || 0;
-
+    // Return all the gathered data as JSON
     res.json({
       totalServers,
+      servers: serversWithDetails,
       recentServers,
       totalVotes,
-      activePlayers,
     });
-
   } catch (err) {
     console.error('Error retrieving admin server data:', err);
-    res.status(500).json({ message: 'Error retrieving data' });
+    res.status(500).json({ message: 'Error retrieving data', error: err });
   }
 });
+
 
 
 // 🔹 LOGOUT ENDPOINT
